@@ -1,6 +1,6 @@
 use cursive::Cursive;
 use cursive::view::{Nameable, Resizable};
-use cursive::views::{Dialog, TextView, LinearLayout, EditView, ListView, Checkbox, PaddedView};
+use cursive::views::{Dialog, TextView, LinearLayout, EditView, ListView, Checkbox, PaddedView, Button};
 
 use crate::helper;
 use crate::structs::Configuration;
@@ -53,6 +53,16 @@ pub fn create_menu_config(s: &mut Cursive, config: Configuration) {
         group_view.add_child(packages_view);
         grouped_packages_view.add_child(group_view);
     }
+
+    let buttons = LinearLayout::horizontal()
+        .child(Button::new("Install", |s| create_text_dialog(s, String::from("Installing"))))
+        .child(Button::new("Back", |s| {
+            s.pop_layer();
+            create_path_dialog(s);
+        }))
+        .child(Button::new("Quit", |s| s.quit()));
+
+    grouped_packages_view.add_child(buttons);
 
     s.add_layer(grouped_packages_view)
 }
