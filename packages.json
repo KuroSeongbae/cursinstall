@@ -1,0 +1,41 @@
+{
+	"add_repository_command": "eselect repository add",
+	"repositories": [],
+	"sync_command": "emaint --auto sync",
+	"update_command": "emerge -vuDN @world",
+	"install_command": "emerge",
+	"packages": [
+		"games-misc/cowsay",
+		"package2",
+		"package3"
+	],
+	"grouped_packages": [
+		{
+			"group_name": "group1",
+			"packages": [
+				"games-misc/cowsay",
+				"package2",
+				"package3"
+			]
+		},
+		{
+			"group_name": "group2",
+			"packages": [
+				"games-misc/cowsay",
+				"package2",
+				"package3"
+			]
+		},
+		{
+			"group_name": "group3",
+			"packages": [
+				"games-misc/cowsay",
+				"package2",
+				"package3"
+			]
+		}
+	],
+	"comments": [
+		"eselect needs to be installed before adding repos"
+	]
+}
