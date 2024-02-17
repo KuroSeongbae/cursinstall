@@ -1,6 +1,11 @@
-use cursive::{Cursive, View};
+use cursive::Cursive;
 use cursive::view::{Nameable, Resizable};
 use cursive::views::{Dialog, TextView, LinearLayout, EditView, Checkbox, PaddedView, Button};
+
+use std::sync::mpsc;
+use std::thread;
+
+use crate::buffer_view::*;
 
 use crate::helper;
 use crate::structs::Configuration;
@@ -33,19 +38,25 @@ pub fn create_menu_config(s: &mut Cursive, config: Configuration) {
     for package in config.packages.iter() {
         grouped_packages_view.add_child(LinearLayout::horizontal()
             .child(Checkbox::new().checked())
-            .child(TextView::new(package.clone())).with_name("package"))
+            .child(TextView::new(package.clone()))
+            .with_name("package"))
     }
 
     for group in config.grouped_packages.iter()
     {
-        let mut group_view = LinearLayout::vertical().child(TextView::new(group.group_name.clone()));
+        let mut group_view = LinearLayout::vertical().child(
+                LinearLayout::horizontal()
+                    .child(Checkbox::new().checked())
+                    .child(TextView::new(group.group_name.clone()))
+                );
         let mut packages_view = LinearLayout::vertical();
 
         for package in group.packages.iter() {
             packages_view.add_child(
                     LinearLayout::horizontal()
                         .child(Checkbox::new().checked())
-                        .child(TextView::new(package.clone())).with_name("package")
+                        .child(TextView::new(package.clone()))
+                        .with_name("package")
                 );
         }
 
@@ -56,7 +67,12 @@ pub fn create_menu_config(s: &mut Cursive, config: Configuration) {
     }
 
     let buttons = LinearLayout::horizontal()
-        .child(Button::new("Install", |s| create_install_dialog(s)))
+        .child(Button::new("Execute", |s| {
+            match helper::get_checked_packages(s) {
+                Some(packages) => create_confirm_dialog(s, packages),
+                None => create_error_dialog(s, "No packages selected".to_string())
+            }
+        }))
         .child(Button::new("Back", |s| {
             s.pop_layer();
             create_path_dialog(s);
@@ -68,35 +84,81 @@ pub fn create_menu_config(s: &mut Cursive, config: Configuration) {
     s.add_layer(grouped_packages_view)
 }
 
-pub fn create_install_dialog(s: &mut Cursive) {
-    let mut packages: String = String::new();
+pub fn create_confirm_dialog(s: &mut Cursive, packages: Vec<String>) {
+    s.add_layer(Dialog::around(TextView::new(packages.join("\n")))
+        .title("Following packages will be installed")
+        .button("Accept", move |s| {
+            s.pop_layer();
+            create_install_dialog(s, packages.clone());
+        })
+        .button("Cancel", |s| { s.pop_layer(); }))
+}
 
-    // TODO: check for correct type
-    s.call_on_all_named("package", |f: &mut LinearLayout| {
-        // let view: &mut LinearLayout = f.0;
+pub fn create_error_dialog(s: &mut Cursive, message: String) {
+   s.add_layer(Dialog::around(
+        TextView::new(message)
+    )
+    .title("Error")
+    .button("back", |s| { s.pop_layer(); }))
+}
 
-        match (f.get_child(0), f.get_child(1)) {
-            (Some(checkbox), Some(textview)) => {
-                let checkbox: &Checkbox = match checkbox.as_any().downcast_ref::<Checkbox>() {
-                    Some(cb) => cb,
-                    None => panic!("The Child is not a Checkbox"),
-                };
+// pub fn create_install_dialog(s: &mut Cursive, packages: Vec<String>) {
+//     // TODO: capture output
+//     let command = helper::install_packages("emerge".to_string(), packages);
+//
+//     let status = match command {
+//         Ok(mut child) => {
+//             match child.try_wait() {
+//                 Ok(status) => {
+//                     match status {
+//                         Some(stat) => {
+//                             if stat.success() {
+//                                 s.quit();
+//                                 String::from("Finished!")
+//                             }
+//                             else {
+//                                 String::from("Failed!")
+//                             }
+//                         },
+//                         None => {
+//                             s.quit();
+//                             String::from("Installing...")
+//                         }
+//                     }
+//                 },
+//                 Err(e) => String::from(format!("Status error: {}", e.to_string()))
+//             }
+//         },
+//         Err(e) => String::from(format!("Command error: {}", e.to_string()))
+//     };
+//
+//     s.add_layer(Dialog::around(
+//         TextView::new(status)
+//     )
+//     .button("retry", |s| {
+//             s.pop_layer();
+//             create_path_dialog(s)
+//     })
+//     .button("exit", |s| s.quit())) 
+// }
 
-                let textview: &TextView = match textview.as_any().downcast_ref::<TextView>() {
-                    Some(tv) => tv,
-                    None => panic!("The child is not a TextView"),
-                };
+pub fn create_install_dialog(s: &mut Cursive, packages: Vec<String>) {
+    let cb_sink = s.cb_sink().clone();
 
-                if checkbox.is_checked() {
-                    packages.push_str(format!("{} ", textview.get_content().source()).as_str());
-                }
-            },
-            _ => println!("meow"),
-        }
+    // We want to refresh the page even when no input is given.
+    s.add_global_callback('q', |s| s.quit());
+
+    // A channel will communicate data from our running task to the UI.
+    let (tx, rx) = mpsc::channel();
+
+    // Generate data in a separate thread.
+    thread::spawn(move || {
+        helper::install_packages("emerge".to_string(), packages, &tx, cb_sink);
     });
 
+    // And sets the view to read from the other end of the channel.
     s.add_layer(Dialog::around(
-        TextView::new(packages)
+        BufferView::new(200, rx)
     )
     .button("retry", |s| {
             s.pop_layer();

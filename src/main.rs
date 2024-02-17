@@ -1,6 +1,7 @@
 mod structs;
 mod tui;
 mod helper;
+mod buffer_view;
 
 fn main() {
     // Creates the cursive root - required for every application.
