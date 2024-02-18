@@ -1,6 +1,6 @@
 {
 	"add_repository_command": "eselect repository add",
-	"repositories": [],
+	"repositories": ["meow repo"],
 	"sync_command": "emaint --auto sync",
 	"update_command": "emerge -vuDN @world",
 	"install_command": "emerge",

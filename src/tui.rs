@@ -1,6 +1,6 @@
-use cursive::Cursive;
+use cursive::{Cursive, View};
 use cursive::view::{Nameable, Resizable};
-use cursive::views::{Dialog, TextView, LinearLayout, EditView, Checkbox, PaddedView, Button};
+use cursive::views::{Dialog, TextView, LinearLayout, EditView, Checkbox, PaddedView, Button, ScrollView};
 
 use std::sync::mpsc;
 use std::thread;
@@ -33,6 +33,63 @@ pub fn create_path_dialog(s: &mut Cursive) {
 }
 
 pub fn create_menu_config(s: &mut Cursive, config: Configuration) {
+    let mut views = LinearLayout::vertical();
+    views.add_child(create_repo_selection(&config));
+
+    views.add_child(LinearLayout::horizontal()
+        .child(Checkbox::new().checked().with_name("sync_check"))
+        .child(TextView::new(format!("Sync ({})", config.sync_command)))
+    );
+
+    views.add_child(LinearLayout::horizontal()
+        .child(Checkbox::new().checked().with_name("update_check"))
+        .child(TextView::new(format!("Update ({})", config.update_command)))
+    );
+
+    views.add_child(create_package_selection(&config));
+
+    s.add_layer(Dialog::around(ScrollView::new(views))
+        .button("Execute", move |s| {
+            match helper::validate_selection(s, &config) {
+                Some(executions) => create_confirm_dialog(s, executions),
+                None => create_error_dialog(s, "Nothing selected".to_string())
+            }
+        })
+        .button("Back", |s| {
+            s.pop_layer();
+            create_path_dialog(s);
+        })
+        .button("Quit", |s| s.quit())
+    );
+}
+
+pub fn create_repo_selection(config: &Configuration) -> LinearLayout {
+    let mut add_repos_view = LinearLayout::vertical()
+        .child(LinearLayout::horizontal()
+            .child(Checkbox::new().checked().with_name("add_repo_check"))
+            .child(TextView::new(format!("Add Repos ({})", config.add_repository_command))) 
+        );
+
+    let mut repos_view = LinearLayout::vertical();
+    for repo in config.repositories.iter() {
+        repos_view.add_child(LinearLayout::horizontal()
+            .child(Checkbox::new().checked())
+            .child(TextView::new(repo.clone()))
+            .with_name("repository"))
+    }
+
+    add_repos_view.add_child(PaddedView::lrtb(5, 0, 0, 0, repos_view));
+
+    add_repos_view
+}
+
+pub fn create_package_selection(config: &Configuration) -> LinearLayout {
+    let mut add_install_view = LinearLayout::vertical()
+        .child(LinearLayout::horizontal()
+            .child(Checkbox::new().checked().with_name("install_check"))
+            .child(TextView::new(format!("Install ({})", config.install_command)))
+        );
+
     let mut grouped_packages_view = LinearLayout::vertical();
 
     for package in config.packages.iter() {
@@ -66,30 +123,25 @@ pub fn create_menu_config(s: &mut Cursive, config: Configuration) {
         grouped_packages_view.add_child(group_view);
     }
 
-    let buttons = LinearLayout::horizontal()
-        .child(Button::new("Execute", |s| {
-            match helper::get_checked_packages(s) {
-                Some(packages) => create_confirm_dialog(s, packages),
-                None => create_error_dialog(s, "No packages selected".to_string())
-            }
-        }))
-        .child(Button::new("Back", |s| {
-            s.pop_layer();
-            create_path_dialog(s);
-        }))
-        .child(Button::new("Quit", |s| s.quit()));
+    add_install_view.add_child(PaddedView::lrtb(5, 0, 0, 0, grouped_packages_view));
 
-    grouped_packages_view.add_child(buttons);
-
-    s.add_layer(grouped_packages_view)
+    add_install_view
 }
 
-pub fn create_confirm_dialog(s: &mut Cursive, packages: Vec<String>) {
-    s.add_layer(Dialog::around(TextView::new(packages.join("\n")))
-        .title("Following packages will be installed")
+pub fn create_confirm_dialog(s: &mut Cursive, executions: Vec<(String, String)>) {
+    let mut executions_view = LinearLayout::vertical();
+    let mut num = 1;
+    for execution in executions.iter() {
+        executions_view.add_child(TextView::new(format!("{}: {}",num, execution.0.clone())));
+        executions_view.add_child(PaddedView::lrtb(5, 0, 0, 0, TextView::new(execution.1.clone())));
+        num = num +1;
+    }
+
+    s.add_layer(Dialog::around(ScrollView::new(executions_view))
+        .title("Following commands will be executed in order:")
         .button("Accept", move |s| {
             s.pop_layer();
-            create_install_dialog(s, packages.clone());
+            create_install_dialog(s, executions.clone());
         })
         .button("Cancel", |s| { s.pop_layer(); }))
 }
@@ -102,47 +154,7 @@ pub fn create_error_dialog(s: &mut Cursive, message: String) {
     .button("back", |s| { s.pop_layer(); }))
 }
 
-// pub fn create_install_dialog(s: &mut Cursive, packages: Vec<String>) {
-//     // TODO: capture output
-//     let command = helper::install_packages("emerge".to_string(), packages);
-//
-//     let status = match command {
-//         Ok(mut child) => {
-//             match child.try_wait() {
-//                 Ok(status) => {
-//                     match status {
-//                         Some(stat) => {
-//                             if stat.success() {
-//                                 s.quit();
-//                                 String::from("Finished!")
-//                             }
-//                             else {
-//                                 String::from("Failed!")
-//                             }
-//                         },
-//                         None => {
-//                             s.quit();
-//                             String::from("Installing...")
-//                         }
-//                     }
-//                 },
-//                 Err(e) => String::from(format!("Status error: {}", e.to_string()))
-//             }
-//         },
-//         Err(e) => String::from(format!("Command error: {}", e.to_string()))
-//     };
-//
-//     s.add_layer(Dialog::around(
-//         TextView::new(status)
-//     )
-//     .button("retry", |s| {
-//             s.pop_layer();
-//             create_path_dialog(s)
-//     })
-//     .button("exit", |s| s.quit())) 
-// }
-
-pub fn create_install_dialog(s: &mut Cursive, packages: Vec<String>) {
+pub fn create_install_dialog(s: &mut Cursive, executions: Vec<(String, String)>) {
     let cb_sink = s.cb_sink().clone();
 
     // We want to refresh the page even when no input is given.
@@ -153,7 +165,7 @@ pub fn create_install_dialog(s: &mut Cursive, packages: Vec<String>) {
 
     // Generate data in a separate thread.
     thread::spawn(move || {
-        helper::install_packages("emerge".to_string(), packages, &tx, cb_sink);
+        helper::execute_commands(executions, &tx, cb_sink);
     });
 
     // And sets the view to read from the other end of the channel.
