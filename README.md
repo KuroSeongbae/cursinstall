@@ -12,8 +12,9 @@ The app is still in early stage and might have some bugs. It also needs to be ru
 $ git clone https://github.com/KuroSeongbae/cursinstall 
 $ cd cursinstall
 ```
-3. run it!
+3. Change to `su` (Optional) and run it!
 ```
-$ cargo r
+$ su
+# cargo r
 ```
 You can find an [example json](https://github.com/KuroSeongbae/cursinstall/blob/main/packages.json) in the project :)
