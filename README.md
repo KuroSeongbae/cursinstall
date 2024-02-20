@@ -14,6 +14,6 @@ $ cd cursinstall
 ```
 3. run it!
 ```
-cargo r
+$ cargo r
 ```
 You can find an example json in the project :)
