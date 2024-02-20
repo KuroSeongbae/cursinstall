@@ -1,11 +1,10 @@
 use cursive::Cursive;
-use cursive::views::{TextView, LinearLayout, Checkbox, TextContent,};
+use cursive::views::{TextView, LinearLayout, Checkbox};
 
 use crate::structs::Configuration;
-use std::time::Duration;
-use std::{fs, thread};
+use std::fs;
 use std::sync::mpsc;
-use std::process::{Command, Child, Stdio};
+use std::process::{Command, Stdio};
 
 pub fn deserialize(path: &str) -> Result<Configuration, std::io::Error> {
     // serde_json::from_reader to read from file
@@ -15,60 +14,35 @@ pub fn deserialize(path: &str) -> Result<Configuration, std::io::Error> {
     }
 }
 
-pub fn execute_commands(executions: Vec<(String, String)>, tx: &mpsc::Sender<String>, cb_sink: cursive::CbSink) {
+pub fn execute_commands(executions: Vec<(String, String, Vec<String>)>, tx: &mpsc::Sender<String>, cb_sink: cursive::CbSink) {
+    // TODO: handle tx results :)
     for execution in executions.iter() {
-        tx.send(format!("{}...", execution.0.clone()));
+        let _ = tx.send(format!("{}...", execution.0.clone()));
 
-        match Command::new(execution.1.clone()).stdout(Stdio::null()).status() {
+        match Command::new(execution.1.clone()).args(execution.2.clone()).stdout(Stdio::null()).status() {
+        // match Command::new("emerge").args(vec!["cowsay".to_string(), "sl".to_string()]).status() {
             Ok(status) => {
                 if status.success() {
-                    tx.send("Success!".to_string());
+                    let _ = tx.send("Success!".to_string());
                 } else {
-                    let code = match status.code() {
+                    let _ = match status.code() {
                         Some(code) => tx.send(format!("Failed: {}", code)),
-                        None => tx.send("Failed!".to_string())
+                        None => tx.send("Failed without status code :(".to_string())
                     };
                 }
             }
             Err(_) => {
-                tx.send("Failed!".to_string());
+                let _ = tx.send("Failed to execute command!".to_string());
                 return;
             }
         }
     }
-}
-
-pub fn install_packages(install_command: String, packages: Vec<String>, tx: &mpsc::Sender<String>, cb_sink: cursive::CbSink) {
-    // Command::new("sh").arg("-c").arg("ls").arg("&&").arg(install_command).arg(packages.join(" ")).spawn()
-
-    tx.send("Installing...".to_string());
-
-    match Command::new(install_command).arg(packages.join(" ")).stdout(Stdio::null()).status() {
-        Ok(status) => {
-            if status.success() {
-                tx.send("Success!".to_string());
-            } else {
-                let code = match status.code() {
-                    Some(code) => tx.send(format!("Failed: {}", code)),
-                    None => tx.send("Failed!".to_string())
-                };
-            }
-        }
-        Err(_) => {
-            tx.send("Failed!".to_string());
-            return;
-        }
-    }
-
-    // if tx.send("meow".to_string()).is_err() {
-    //     return;
-    // }
 
     cb_sink.send(Box::new(Cursive::noop)).unwrap();
 }
 
-pub fn validate_selection(s: &mut Cursive, config: &Configuration) -> Option<Vec<(String, String)>> {
-    let mut executions: Vec<(String, String)> = Vec::new();
+pub fn validate_selection(s: &mut Cursive, config: &Configuration) -> Option<Vec<(String, String, Vec<String>)>> {
+    let mut executions: Vec<(String, String, Vec<String>)> = Vec::new();
 
     let add_repos = match s.call_on_name("add_repo_check", |v: &mut Checkbox| {
         return v.is_checked();
@@ -80,20 +54,18 @@ pub fn validate_selection(s: &mut Cursive, config: &Configuration) -> Option<Vec
     let repos = get_checked_repos(s);
 
     if add_repos && !repos.is_empty() {
-        let command = format!("{} {}", config.add_repository_command, repos.join(" "));
-
-        executions.push(("Adding Repos".to_string(), command));
+        executions.push(("Adding Repos".to_string(), config.add_repository_command.clone(), repos));
     }
 
     s.call_on_name("sync_check", |v: &mut Checkbox| {
         if v.is_checked() {
-             executions.push(("Sync".to_string(), format!("{}", config.sync_command)));   
+             executions.push(("Sync".to_string(), config.sync_command.clone(), Vec::new()));   
         }
     });
 
     s.call_on_name("update_check", |v: &mut Checkbox| {
         if v.is_checked() {
-             executions.push(("Update".to_string(), format!("{}", config.update_command)));   
+             executions.push(("Update".to_string(), config.update_command.clone(), Vec::new()));   
         }
     });
 
@@ -107,9 +79,7 @@ pub fn validate_selection(s: &mut Cursive, config: &Configuration) -> Option<Vec
     let packages = get_checked_packages(s);
 
     if install && !packages.is_empty() {
-        let command = format!("{} {}", config.install_command, packages.join(" "));
-
-        executions.push(("Installing".to_string(), command));
+        executions.push(("Installing".to_string(), config.install_command.clone(), packages));
     }
 
     if executions.is_empty() {

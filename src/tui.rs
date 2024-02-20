@@ -1,6 +1,6 @@
-use cursive::{Cursive, View};
+use cursive::Cursive;
 use cursive::view::{Nameable, Resizable};
-use cursive::views::{Dialog, TextView, LinearLayout, EditView, Checkbox, PaddedView, Button, ScrollView};
+use cursive::views::{Dialog, TextView, LinearLayout, EditView, Checkbox, PaddedView, ScrollView};
 
 use std::sync::mpsc;
 use std::thread;
@@ -128,12 +128,15 @@ pub fn create_package_selection(config: &Configuration) -> LinearLayout {
     add_install_view
 }
 
-pub fn create_confirm_dialog(s: &mut Cursive, executions: Vec<(String, String)>) {
+pub fn create_confirm_dialog(s: &mut Cursive, executions: Vec<(String, String, Vec<String>)>) {
     let mut executions_view = LinearLayout::vertical();
     let mut num = 1;
     for execution in executions.iter() {
         executions_view.add_child(TextView::new(format!("{}: {}",num, execution.0.clone())));
-        executions_view.add_child(PaddedView::lrtb(5, 0, 0, 0, TextView::new(execution.1.clone())));
+        executions_view.add_child(PaddedView::lrtb(
+            5, 0, 0, 0, 
+            TextView::new(format!("{} {}", execution.1.clone(), execution.2.join(" ")))
+        ));
         num = num +1;
     }
 
@@ -154,7 +157,7 @@ pub fn create_error_dialog(s: &mut Cursive, message: String) {
     .button("back", |s| { s.pop_layer(); }))
 }
 
-pub fn create_install_dialog(s: &mut Cursive, executions: Vec<(String, String)>) {
+pub fn create_install_dialog(s: &mut Cursive, executions: Vec<(String, String, Vec<String>)>) {
     let cb_sink = s.cb_sink().clone();
 
     // We want to refresh the page even when no input is given.
