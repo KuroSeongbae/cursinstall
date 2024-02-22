@@ -19,14 +19,14 @@ pub fn execute_commands(executions: Vec<(String, String, Vec<String>)>, tx: &mps
     for execution in executions.iter() {
         let _ = tx.send(format!("{}...", execution.0.clone()));
 
-        match Command::new(execution.1.clone()).args(execution.2.clone()).stdout(Stdio::null()).status() {
+        match Command::new(execution.1.clone()).args(execution.2.clone()).stdout(Stdio::null()).stderr(Stdio::null()).status() {
         // match Command::new("emerge").args(vec!["cowsay".to_string(), "sl".to_string()]).status() {
             Ok(status) => {
                 if status.success() {
                     let _ = tx.send("Success!".to_string());
                 } else {
                     let _ = match status.code() {
-                        Some(code) => tx.send(format!("Failed: {}", code)),
+                        Some(code) => tx.send(format!("Failed with status code: {}", code)),
                         None => tx.send("Failed without status code :(".to_string())
                     };
                 }
@@ -51,21 +51,25 @@ pub fn validate_selection(s: &mut Cursive, config: &Configuration) -> Option<Vec
         None => false,
     };
 
-    let repos = get_checked_repos(s);
+    let mut repos = get_checked_repos(s);
 
     if add_repos && !repos.is_empty() {
-        executions.push(("Adding Repos".to_string(), config.add_repository_command.clone(), repos));
+        let cmd_with_args = separate_args_from_command(config.add_repository_command.clone());
+        repos.splice(0..0, cmd_with_args.1.clone());
+        executions.push(("Adding Repos".to_string(), cmd_with_args.0, repos));
     }
 
     s.call_on_name("sync_check", |v: &mut Checkbox| {
         if v.is_checked() {
-             executions.push(("Sync".to_string(), config.sync_command.clone(), Vec::new()));   
+            let cmd_with_args = separate_args_from_command(config.sync_command.clone());
+            executions.push(("Sync".to_string(), cmd_with_args.0, cmd_with_args.1));   
         }
     });
 
     s.call_on_name("update_check", |v: &mut Checkbox| {
         if v.is_checked() {
-             executions.push(("Update".to_string(), config.update_command.clone(), Vec::new()));   
+            let cmd_with_args = separate_args_from_command(config.update_command.clone());
+            executions.push(("Update".to_string(), cmd_with_args.0, cmd_with_args.1));   
         }
     });
 
@@ -76,10 +80,12 @@ pub fn validate_selection(s: &mut Cursive, config: &Configuration) -> Option<Vec
         None => false,
     };
 
-    let packages = get_checked_packages(s);
+    let mut packages = get_checked_packages(s);
 
     if install && !packages.is_empty() {
-        executions.push(("Installing".to_string(), config.install_command.clone(), packages));
+        let cmd_with_args = separate_args_from_command(config.install_command.clone());
+        packages.splice(0..0, cmd_with_args.1.clone());
+        executions.push(("Installing".to_string(), cmd_with_args.0, packages));
     }
 
     if executions.is_empty() {
@@ -147,4 +153,22 @@ pub fn get_checked_packages(s: &mut Cursive) -> Vec<String> {
     });
 
     packages
+}
+
+fn separate_args_from_command(command: String) -> (String, Vec<String>) {
+    let split_cmd: Vec<String> = command.split(' ').map(|x| x.to_string()).collect();
+    let mut cmd_with_args: (String, Vec<String>) = ("".to_string(), Vec::new());
+
+    let mut count = 0;
+    for split in split_cmd.iter() {
+        if count == 0 {
+            cmd_with_args.0 = split.clone();
+        } else {
+            cmd_with_args.1.push(split.clone());
+        }
+
+        count = count + 1;
+    }
+
+    cmd_with_args
 }
