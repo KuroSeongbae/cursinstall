@@ -1,8 +1,7 @@
 use cursive::Cursive;
-use cursive::views::{TextView, LinearLayout, Checkbox};
+use cursive::views::Checkbox;
 
-use crate::structs::{Config, Cmd, Configuration};
-use crate::json_structs::JsonConfig;
+use crate::structs::{Config, Cmd};
 use std::fs;
 use std::sync::mpsc;
 use std::process::{Command, Stdio};
@@ -81,90 +80,6 @@ pub fn validate_selection(s: &mut Cursive, config: Config) -> Option<Vec<(String
     Some(executions)
 }
 
-// pub fn validate_selection(s: &mut Cursive, config: &Configuration) -> Option<Vec<(String, String, Vec<String>)>> {
-//     let mut executions: Vec<(String, String, Vec<String>)> = Vec::new();
-//
-//     let add_repos = match s.call_on_name("add_repo_check", |v: &mut Checkbox| {
-//         return v.is_checked();
-//     }) {
-//         Some(repo_selected) => repo_selected,
-//         None => false,
-//     };
-//
-//     let mut repos = get_checked_repos(s);
-//
-//     if add_repos && !repos.is_empty() {
-//         let cmd_with_args = separate_args_from_command(config.add_repository_command.clone());
-//         repos.splice(0..0, cmd_with_args.1.clone());
-//         executions.push(("Adding Repos".to_string(), cmd_with_args.0, repos));
-//     }
-//
-//     s.call_on_name("sync_check", |v: &mut Checkbox| {
-//         if v.is_checked() {
-//             let cmd_with_args = separate_args_from_command(config.sync_command.clone());
-//             executions.push(("Sync".to_string(), cmd_with_args.0, cmd_with_args.1));   
-//         }
-//     });
-//
-//     s.call_on_name("update_check", |v: &mut Checkbox| {
-//         if v.is_checked() {
-//             let cmd_with_args = separate_args_from_command(config.update_command.clone());
-//             executions.push(("Update".to_string(), cmd_with_args.0, cmd_with_args.1));   
-//         }
-//     });
-//
-//     let install = match s.call_on_name("install_check", |v: &mut Checkbox| {
-//         return v.is_checked();
-//     }) {
-//         Some(install_selected) => install_selected,
-//         None => false,
-//     };
-//
-//     let mut packages = get_checked_packages(s);
-//
-//     if install && !packages.is_empty() {
-//         let cmd_with_args = separate_args_from_command(config.install_command.clone());
-//         packages.splice(0..0, cmd_with_args.1.clone());
-//         executions.push(("Installing".to_string(), cmd_with_args.0, packages));
-//     }
-//
-//     if executions.is_empty() {
-//         return None;
-//     }
-//
-//     Some(executions)
-// }
-
-pub fn get_checked_repos(s: &mut Cursive) -> Vec<String> {
-    let mut repos: Vec<String> = Vec::new();
-
-    // TODO: check for correct type
-    s.call_on_all_named("repository", |f: &mut LinearLayout| {
-        // let view: &mut LinearLayout = f.0;
-        // TODO: the panics need to be replaced and ignored
-        match (f.get_child(0), f.get_child(1)) {
-            (Some(checkbox), Some(textview)) => {
-                let checkbox: &Checkbox = match checkbox.as_any().downcast_ref::<Checkbox>() {
-                    Some(cb) => cb,
-                    None => return (),
-                };
-
-                let textview: &TextView = match textview.as_any().downcast_ref::<TextView>() {
-                    Some(tv) => tv,
-                    None => return (),
-                };
-
-                if checkbox.is_checked() {
-                    repos.push(textview.get_content().source().to_string());
-                }
-            },
-            _ => println!("meow"),
-        }
-    });
-
-    repos
-}
-
 pub fn check_args_for_command(s: &mut Cursive, mut cmd: Cmd) -> Cmd {
     for (i, arg) in cmd.args.iter_mut().enumerate() {
         s.call_on_name(format!("arg{}", i).as_str(), |cb: &mut Checkbox| {
@@ -181,36 +96,6 @@ pub fn check_args_for_command(s: &mut Cursive, mut cmd: Cmd) -> Cmd {
     }
 
     cmd
-}
-
-pub fn get_checked_packages(s: &mut Cursive) -> Vec<String> {
-    let mut packages: Vec<String> = Vec::new();
-
-    // TODO: check for correct type
-    s.call_on_all_named("package", |f: &mut LinearLayout| {
-        // let view: &mut LinearLayout = f.0;
-        // TODO: the panics need to be replaced and ignored
-        match (f.get_child(0), f.get_child(1)) {
-            (Some(checkbox), Some(textview)) => {
-                let checkbox: &Checkbox = match checkbox.as_any().downcast_ref::<Checkbox>() {
-                    Some(cb) => cb,
-                    None => return (),
-                };
-
-                let textview: &TextView = match textview.as_any().downcast_ref::<TextView>() {
-                    Some(tv) => tv,
-                    None => return (),
-                };
-
-                if checkbox.is_checked() {
-                    packages.push(textview.get_content().source().to_string());
-                }
-            },
-            _ => println!("meow"),
-        }
-    });
-
-    packages
 }
 
 fn separate_args_from_command(command: String) -> (String, Vec<String>) {
