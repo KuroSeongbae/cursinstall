@@ -1,4 +1,5 @@
 mod structs;
+mod json_structs;
 mod tui;
 mod helper;
 mod buffer_view;
