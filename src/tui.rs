@@ -56,14 +56,28 @@ pub fn create_command_selection(s: &mut Cursive, config: Config) {
             LinearLayout::vertical().child(command_cb).child(cmd_config_btn)));
     }
 
-    let scroll_view_with_button = LinearLayout::vertical()
-        .child(ScrollView::new(view))
-        .child(Button::new("Execute", move |s| {
+
+    let mut buttons_view = LinearLayout::horizontal();
+
+    buttons_view.add_child(Button::new("Execute", move |s| {
             match helper::validate_selection(s, config.clone()) {
                 Some(executions) => create_confirmation_dialog(s, executions),
                 None => create_error_dialog(s, "No Commands to run".to_string())
             }
         }));
+
+    buttons_view.add_child(Button::new("Back", move |s| {
+        s.pop_layer();
+        create_path_dialog(s);
+    }));
+
+    buttons_view.add_child(Button::new("Quit", |s| {
+        s.quit();
+    }));
+
+    let scroll_view_with_button = LinearLayout::vertical()
+        .child(ScrollView::new(view))
+        .child(buttons_view);
 
     s.add_layer(scroll_view_with_button);
 }
@@ -107,13 +121,27 @@ pub fn create_arg_config(s: &mut Cursive, config: Config, cmd: usize) {
 
     view.add_child(ScrollView::new(LinearLayout::vertical().child(ungrouped_view).child(grouped_view)));
 
-    view.add_child(Button::new("Accept", move |s| {
-        let mut c = config.clone();
+    let mut buttons_view = LinearLayout::horizontal();
+
+    let config_clone = config.clone();
+    buttons_view.add_child(Button::new("Accept", move |s| {
+        let mut c = config_clone.clone();
         c.commands[cmd].0 = helper::check_args_for_command(s, command.clone());
 
         s.pop_layer();
         create_command_selection(s, c);
     }));
+
+    buttons_view.add_child(Button::new("Back", move |s| {
+        s.pop_layer();
+        create_command_selection(s, config.clone());
+    }));
+
+    buttons_view.add_child(Button::new("Quit", |s| {
+        s.quit();
+    }));
+
+    view.add_child(buttons_view);
 
     s.add_layer(view);
 }
@@ -151,11 +179,7 @@ pub fn create_executions_dialog(s: &mut Cursive, executions: Vec<(String, Vec<St
     s.add_layer(Dialog::around(
         BufferView::new(200, rx)
     )
-    .button("retry", |s| {
-            s.pop_layer();
-            create_path_dialog(s)
-    })
-    .button("exit", |s| s.quit()))
+    .button("Exit", |s| s.quit()))
 }
 
 pub fn create_error_dialog(s: &mut Cursive, message: String) {
@@ -163,14 +187,14 @@ pub fn create_error_dialog(s: &mut Cursive, message: String) {
         TextView::new(message)
     )
     .title("Error")
-    .button("back", |s| { s.pop_layer(); }))
+    .button("Back", |s| { s.pop_layer(); }))
 }
 
 pub fn create_text_dialog(s: &mut Cursive, text: String) {
     s.add_layer(Dialog::around(
         TextView::new(text)
     )
-    .button("retry", |s| {
+    .button("Retry", |s| {
             s.pop_layer();
             create_path_dialog(s)
     })
