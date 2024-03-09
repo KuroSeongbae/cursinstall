@@ -1,0 +1,35 @@
+{
+	"title": "Test",
+	"comment": "Install some fun things :)",
+	"commands": [
+		{
+			"command": "eselect repository add",
+			"args": ["guru"],
+			"grouped_args": []
+		},
+		{
+			"command": "emaint --auto sync",
+			"args": [],
+			"grouped_args": []
+		},
+		{
+			"command": "emerge",
+			"args": ["htop"],
+			"grouped_args": [
+				{
+					"group_name": "Nice to use",
+					"args": [
+						"neofetch"
+					]
+				},
+				{
+					"group_name": "Actually unnecessary but fun",
+					"args": [
+						"sl",
+						"cowsay"
+					]
+				}
+			]
+		}
+	]
+}
