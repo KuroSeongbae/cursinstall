@@ -100,13 +100,11 @@ pub fn create_arg_config(s: &mut Cursive, config: Config, cmd: usize) {
 
     let mut grouped_view = LinearLayout::vertical();
 
-    let mut group_iter: usize = 0;
-
-    for (i, group) in command.grouped_args.iter().enumerate() {
+    for (gi, group) in command.grouped_args.iter().enumerate() {
         let mut group_view = LinearLayout::vertical().child(TextView::new(group.0.group_name.clone()));
         
-        for arg in group.0.args.iter() {
-            let cb = Checkbox::new().with_checked(arg.1).with_name(format!("group{}arg{}", group_iter, i));
+        for (i, arg) in group.0.args.iter().enumerate() {
+            let cb = Checkbox::new().with_checked(arg.1).with_name(format!("group{}arg{}", gi, i));
             let text = TextView::new(arg.0.clone());
 
             group_view.add_child(PaddedView::lrtb(3, 0, 0, 0, LinearLayout::horizontal()
@@ -116,7 +114,6 @@ pub fn create_arg_config(s: &mut Cursive, config: Config, cmd: usize) {
 
         grouped_view.add_child(group_view);
 
-        group_iter = group_iter + 1;
     }
 
     view.add_child(ScrollView::new(LinearLayout::vertical().child(ungrouped_view).child(grouped_view)));
