@@ -149,9 +149,18 @@ pub fn create_confirmation_dialog(s: &mut Cursive, executions: Vec<(String, Vec<
         executions_view.add_child(TextView::new(format!("{}: {} {}", i, execution.0.clone(), execution.1.join(" "))));
     }
 
+    let executions_clone = executions.clone();
+
     s.add_layer(Dialog::around(ScrollView::new(executions_view))
         .title("Following commands will be executed in order:")
-        .button("Accept", move |s| {
+        .button("Create file", move |s| {
+            s.pop_layer();
+            match helper::write_commands_to_file(executions_clone.clone()) {
+                Ok(_) => create_text_dialog(s, "File created. You can run that file.".to_string()),
+                Err(_) => create_error_dialog(s, "Something went wrong".to_string())
+            }
+        })
+        .button("Execute in TUI", move |s| {
             s.pop_layer();
             create_executions_dialog(s, executions.clone());
         })
@@ -169,7 +178,7 @@ pub fn create_executions_dialog(s: &mut Cursive, executions: Vec<(String, Vec<St
 
     // Generate data in a separate thread.
     thread::spawn(move || {
-        helper::execute_commands(executions, &tx, cb_sink);
+        helper::execute_commands_in_tui(executions, &tx, cb_sink);
     });
 
     // And sets the view to read from the other end of the channel.

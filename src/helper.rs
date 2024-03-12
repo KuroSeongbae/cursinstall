@@ -3,8 +3,11 @@ use cursive::views::Checkbox;
 
 use crate::structs::{Config, Cmd};
 use std::fs;
+use std::io::Write;
 use std::sync::mpsc;
 use std::process::{Command, Stdio};
+
+use std::fs::File;
 
 pub fn deserialize(path: &str) -> Result<Config, std::io::Error> {
     // serde_json::from_reader to read from file
@@ -14,7 +17,7 @@ pub fn deserialize(path: &str) -> Result<Config, std::io::Error> {
     }
 }
 
-pub fn execute_commands(executions: Vec<(String, Vec<String>)>, tx: &mpsc::Sender<String>, cb_sink: cursive::CbSink) {
+pub fn execute_commands_in_tui(executions: Vec<(String, Vec<String>)>, tx: &mpsc::Sender<String>, cb_sink: cursive::CbSink) {
     // TODO: handle tx results :)
     for execution in executions.iter() {
         let _ = tx.send(format!("{}...", execution.0.clone()));
@@ -39,6 +42,18 @@ pub fn execute_commands(executions: Vec<(String, Vec<String>)>, tx: &mpsc::Sende
 
         cb_sink.send(Box::new(Cursive::noop)).unwrap();
     }
+}
+
+pub fn write_commands_to_file(executions: Vec<(String, Vec<String>)>) -> std::io::Result<()>{
+    let mut file_content = String::new();
+    executions.iter().for_each(|cmd| {
+        let cmd_with_args = format!("{} {}\n", cmd.0, cmd.1.join(" "));
+        file_content.push_str(cmd_with_args.as_str());
+    });
+
+    let mut file = File::create("commands.sh")?;
+    file.write_all(file_content.as_bytes())?;
+    Ok(())
 }
 
 pub fn validate_selection(s: &mut Cursive, config: Config) -> Option<Vec<(String, Vec<String>)>> {
